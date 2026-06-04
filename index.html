@@ -2127,31 +2127,27 @@ async function signInWithPin(){
 async function googleSignIn(){
   if(!window._fbAuth){toast('Google sign-in unavailable — use PIN instead','err');return;}
   try{
-    await window._fbAuth.signInWithRedirect(window._googleProvider);
-  }catch(e){toast('Google sign-in failed: '+e.message,'err');}
-}
-async function handleGoogleRedirect(){
-  if(!window._fbAuth)return;
-  try{
-    const result=await window._fbAuth.getRedirectResult();
-    if(!result||!result.user)return;
+    const result=await window._fbAuth.signInWithPopup(window._googleProvider);
     const user=result.user;
-    const existing=await fsList('players',[['googleUid','EQUAL',user.uid]]);
+    const existing=await fsList('players',[["googleUid","EQUAL",user.uid]]);
     if(existing.length){
       CU={id:existing[0].id,...existing[0]};
       localStorage.setItem('brickcup_pid',existing[0].id);
       await loadAll();launchApp();toast('Welcome back, '+CU.nickname+'!','ok');
     }else{
       window._pendingGoogleUser=user;
-      S('landing');showOnlyPanel('land-google-nick');
+      showOnlyPanel('land-google-nick');
       const sug=(user.displayName||'').split(' ')[0];
       if(sug)document.getElementById('nn-google').value=sug;
       setTimeout(()=>{const i=document.getElementById('nn-google');if(i)i.select();},100);
     }
   }catch(e){
-    if(e.code!=='auth/no-auth-event')console.warn('Google redirect:',e.message);
+    if(e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request')return;
+    toast('Google sign-in failed: '+e.message,'err');
   }
 }
+// handleGoogleRedirect is a no-op stub (using popup not redirect)
+async function handleGoogleRedirect(){}
 async function cancelGoogleSignup(){
   try{await window._fbAuth.signOut();}catch(e){}
   window._pendingGoogleUser=null;
