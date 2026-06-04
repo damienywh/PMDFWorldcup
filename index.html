@@ -2239,10 +2239,13 @@ async function tryAutoLogin(){
   CU=p;await loadAll();launchApp();return true;
 }
 async function giveStarterPack(pid){
-  const cards=drawCards(16);
-  const ops=cards.map(c=>({op:'set',col:'cards',id:'c'+Date.now()+Math.random().toString(36).slice(2),data:{...c,ownerId:pid,points:0,status:'owned',acquiredAt:ST()}}));
-  ops.push({op:'update',col:'players',id:pid,data:{cardCount:INC(16)}});
+  const cards=drawCards(40);
+  const _t=Date.now();
+  const ops=cards.map((card,i)=>({op:'set',col:'cards',id:'c'+_t+'_'+i+'_'+Math.random().toString(36).slice(2,5),data:{...card,ownerId:pid,points:0,status:'owned',acquiredAt:ST()}}));
+  ops.push({op:'update',col:'players',id:pid,data:{cardCount:INC(40)}});
   await fsBatch(ops);
+  // Brief pause for Firestore to index the new cards before loadCards queries
+  await new Promise(r=>setTimeout(r,1200));
 }
 function drawCards(n){return Array.from({length:n},()=>{const r=pickR();const pool=POOL.filter(p=>p.r===r);const src=pool.length?pool:POOL;const p=src[Math.floor(Math.random()*src.length)];return{realPlayerId:p.id,name:p.n,country:p.c,pos:p.p,rarity:p.r,flag:p.f};});}
 function pickR(){const r=Math.random();return r<.65?'bronze':r<.90?'silver':'gold';}
@@ -2461,9 +2464,9 @@ async function openPack(){
   if((CU.bricks||0)<50){toast('Need 50 🧱!','err');return;}
   const btn=document.getElementById('pack-btn');btn.disabled=true;btn.textContent='Opening…';
   await fsUpdate('players',CU.id,{bricks:INC(-50)});CU.bricks=(CU.bricks||0)-50;
-  const cards=drawCards(3);const drawn=[];
+  const cards=drawCards(15);const drawn=[];
   const ops=cards.map(c=>{const id='c'+Date.now()+Math.random().toString(36).slice(2,6);const d={...c,ownerId:CU.id,points:0,status:'owned',acquiredAt:ST()};drawn.push({id,...d});return{op:'set',col:'cards',id,data:d};});
-  ops.push({op:'update',col:'players',id:CU.id,data:{cardCount:INC(3)}});
+  ops.push({op:'update',col:'players',id:CU.id,data:{cardCount:INC(15)}});
   await fsBatch(ops);
   btn.classList.add('hidden');document.getElementById('pack-reveal').classList.remove('hidden');
   const rc=document.getElementById('pack-cards');rc.innerHTML='';
@@ -2760,10 +2763,26 @@ async function adminGivePack(id,nick){
 async function adminSaveEdit(id,nick){const b=parseInt(document.getElementById('ep-bricks').value)||0;const pts=parseInt(document.getElementById('ep-pts').value)||0;await fsSet('players',id,{bricks:b,points:pts});closeModal();toast(nick+' updated ✅','ok');adminRefreshPlayers();adminRefreshStats();}
 async function adminResetOnePts(id,nick){if(!confirm('Reset '+nick+"'s points?"))return;await fsUpdate('players',id,{points:0});closeModal();toast(nick+' reset','ok');adminRefreshPlayers();}
 async function adminDeletePlayer(id,nick){
-  if(!confirm('DELETE '+nick+'?'))return;
-  const[cs,ls]=await Promise.all([fsList('cards',[['ownerId','EQUAL',id]]),fsList('listings',[['sellerId','EQUAL',id]])]);
-  const ops=[...cs.map(d=>({op:'delete',col:'cards',id:d.id})),...ls.map(d=>({op:'delete',col:'listings',id:d.id})),{op:'delete',col:'xi',id},{op:'delete',col:'players',id}];
-  await fsBatch(ops);toast(nick+' deleted','ok');adminRefreshPlayers();adminRefreshStats();
+  if(!confirm('DELETE '+nick+'? This removes all their cards and data.'))return;
+  try{
+    const[cs,ls]=await Promise.all([
+      fsList('cards',[['ownerId','EQUAL',id]]),
+      fsList('listings',[['sellerId','EQUAL',id]])
+    ]);
+    // Delete in chunks (may have many cards)
+    const deleteOps=[
+      ...cs.map(d=>({op:'delete',col:'cards',id:d.id})),
+      ...ls.map(d=>({op:'delete',col:'listings',id:d.id})),
+    ];
+    if(deleteOps.length)await fsBatch(deleteOps);
+    // Delete xi and player doc directly (fsDel is more reliable for known IDs)
+    await Promise.all([fsDel('xi',id),fsDel('players',id)]);
+    toast(nick+' deleted ✅','ok');
+    adminRefreshPlayers();adminRefreshStats();
+  }catch(e){
+    toast('Delete failed: '+e.message,'err');
+    console.error('Delete error:',e);
+  }
 }
 async function adminLockGame(){const msg=document.getElementById('admin-lock-msg').value||'Game paused.';await fsSet('config','gameState',{locked:true,lockMsg:msg,lockedAt:ST()});toast('Game locked 🔒','ok');}
 async function adminUnlockGame(){await fsSet('config','gameState',{locked:false,lockMsg:'',lockedAt:ST()});toast('Game unlocked 🟢','ok');}
