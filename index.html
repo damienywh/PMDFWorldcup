@@ -657,7 +657,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
 const _PID='worldcup2026-4d178';
 const _KEY='AIzaSyBiyPjJwMWR2EAAWcM9zoW7pEA1Qk7-w_o';
 const _BASE=`https://firestore.googleapis.com/v1/projects/${_PID}/databases/(default)/documents`;
-const _QRY =`https://firestore.googleapis.com/v1/projects/${_PID}/databases/(default):runQuery`;
+const _QRY =`https://firestore.googleapis.com/v1/projects/${_PID}/databases/(default)/documents:runQuery`;
+  const _RPATH=`projects/${_PID}/databases/(default)/documents`;
 
 // Encode JS value → Firestore value
 function _enc(v){
@@ -754,7 +755,7 @@ async function fsUpdate(col,id,data){
     writes.push({transform:{document:name,fieldTransforms:transforms}});
   }
   if(!writes.length)return;
-  const r=await fetch(`https://firestore.googleapis.com/v1/projects/${_PID}/databases/(default):batchWrite?key=${_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes})});
+  const r=await fetch(`https://firestore.googleapis.com/v1/projects/${_PID}/databases/(default)/documents:batchWrite?key=${_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({writes})});
   if(!r.ok)throw new Error('fsUpdate failed: '+await r.text());
 }
 // BATCH WRITE — array of {op,col,id,data}
