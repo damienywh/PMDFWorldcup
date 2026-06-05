@@ -2300,9 +2300,10 @@ async function showPubLb(){
   H('landing');S('pub-lb');
   const list=document.getElementById('pub-lb-list');
   list.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px;">Loading…</div>';
-  const rows=await fsList('players',[],{orderBy:'points',dir:'DESCENDING'});
+  let rows=await fsList('players',[],{orderBy:'points',dir:'DESCENDING'});
+  if(!rows.length){rows=await fsList('players',[],{limit:200});rows.sort((a,b)=>(b.points||0)-(a.points||0));}
   renderLbRows(rows,list,null);
-  fsListen('pubLb',()=>fsList('players',[],{orderBy:'points',dir:'DESCENDING'}),s=>renderLbRows(s,list,null));
+  fsListen('pubLb',()=>fsList('players',[],{orderBy:'points',dir:'DESCENDING'}).then(r=>r.length?r:fsList('players',[],{limit:200}).then(r2=>{r2.sort((a,b)=>(b.points||0)-(a.points||0));return r2;})),s=>renderLbRows(s,list,null));
 }
 function hidePubLb(){H('pub-lb');S('landing');}
 function adminLogin(){
@@ -2418,6 +2419,7 @@ function goScreen(name){
   if(name==='home')renderHome();if(name==='team')renderTeam();if(name==='cards')renderCardsGrid(cardFilter);
   if(name==='market')renderMkt();if(name==='predict')renderPred();if(name==='lb')renderLb();
   if(name==='album')renderAlbum();
+  if(name==='built')buildBuiltSteps();
   updateNavAlerts();
 }
 
@@ -3018,7 +3020,12 @@ async function renderPred(){
 // ── LEADERBOARD ──
 async function renderLb(){
   const con=document.getElementById('lb-list');con.innerHTML='<div style="color:var(--muted);text-align:center;padding:16px;">Loading…</div>';
-  const rows=await fsList('players',[],{orderBy:'points',dir:'DESCENDING'});
+  let rows=await fsList('players',[],{orderBy:'points',dir:'DESCENDING'});
+  // Firestore index may not be ready yet — fall back to unordered + client sort
+  if(!rows.length){
+    rows=await fsList('players',[],{limit:200});
+    rows.sort((a,b)=>(b.points||0)-(a.points||0));
+  }
   renderLbRows(rows,con,CU?.id);
   fsListen('lb',()=>fsList('players',[],{orderBy:'points',dir:'DESCENDING'}),s=>renderLbRows(s,con,CU?.id));
 }
