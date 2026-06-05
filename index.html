@@ -55,6 +55,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
 .stat-chip img{width:14px;height:14px;object-fit:contain;flex-shrink:0;}
 .sign-out-btn{background:var(--surface2);border:1px solid var(--border2);color:var(--muted);border-radius:var(--r);padding:4px 8px;font-size:10px;font-family:var(--fh);font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;min-height:28px;}
 #nav{background:var(--chrome);border-top:2px solid var(--cb);display:flex;position:fixed;bottom:0;left:0;right:0;z-index:100;height:var(--nav-h);padding-bottom:env(safe-area-inset-bottom,0px);}
+.nb-alert{position:absolute;top:5px;right:8px;width:8px;height:8px;background:#e74c3c;border-radius:50%;border:2px solid var(--chrome);pointer-events:none;}
 .nb{flex:1;border:none;background:none;color:var(--muted);cursor:pointer;padding:6px 2px 4px;font-family:var(--fb);font-size:9px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .12s;border-top:2px solid transparent;min-width:0;overflow:hidden;}
 .nb span:first-child{font-size:17px;line-height:1;}
 .nb.active{color:var(--accent);border-top-color:var(--accent);}
@@ -627,6 +628,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
  <nav id="nav">
   <button class="nb active" id="nb-home" onclick="goScreen('home')"><span>🏠</span><span>Home</span></button>
   <button class="nb" id="nb-team" onclick="goScreen('team')"><span>⚽</span><span>Team</span></button>
+  <button class="nb" id="nb-predict" onclick="goScreen('predict')"><span>🎯</span><span>Predict</span></button>
   <button class="nb" id="nb-cards" onclick="goScreen('cards')"><span>🃏</span><span>Cards</span></button>
   <button class="nb" id="nb-market" onclick="goScreen('market')"><span>🏪</span><span>Market</span></button>
   <button class="nb" id="nb-lb" onclick="goScreen('lb')"><span>🏆</span><span>Rank</span></button>
@@ -2353,7 +2355,7 @@ function drawCards(n){return Array.from({length:n},()=>{const r=pickR();const po
 function pickR(){const r=Math.random();return r<.65?'bronze':r<.90?'silver':'gold';}
 
 // ── LOADERS ──
-async function loadAll(){if(!CU)return;await Promise.all([loadCards(),loadWindow(),loadXI(),loadListings()]);}
+async function loadAll(){if(!CU)return;await Promise.all([loadCards(),loadWindow(),loadXI(),loadListings()]);updateNavAlerts();}
 async function loadCards(){
   myCards=await fsList('cards',[['ownerId','EQUAL',CU.id]]);
   fsListen('myCards',()=>fsList('cards',[['ownerId','EQUAL',CU.id]]),s=>{myCards=s;refreshUI();});
@@ -2405,6 +2407,7 @@ function goScreen(name){
   if(name==='home')renderHome();if(name==='team')renderTeam();if(name==='cards')renderCardsGrid(cardFilter);
   if(name==='market')renderMkt();if(name==='predict')renderPred();if(name==='lb')renderLb();
   if(name==='album')renderAlbum();
+  updateNavAlerts();
 }
 
 // ── CARD COMPONENT ──
@@ -2672,7 +2675,7 @@ function autoFill(){
 async function saveTeam(){
   if(CW.locked){toast('Window locked 🔒 — your saved team is scoring.','err');return;}
   await fsSet('xi',CU.id,{playerId:CU.id,windowId:CW.id,slots:myXI,formation:currentFormation,savedAt:ST()});
-  toast('Team saved ✅ — update any time before window locks.','ok');
+  toast('Team saved ✅ — update any time before window locks.','ok');updateNavAlerts();
 }
 
 // ── MY CARDS ──
@@ -3435,6 +3438,25 @@ function buildBuiltSteps(){
     div.appendChild(hdr);div.appendChild(body);
     con.appendChild(div);
   });
+}
+
+
+// ── NAV ALERT BADGES ──
+function updateNavAlerts(){
+  if(!CU||!CW||CW.locked){clearNavAlerts();return;}
+  const fm=FORMATIONS[currentFormation]||FORMATIONS['433'];
+  const needed=Object.values(fm.rows).reduce((a,b)=>a+b,0);
+  const hasTeam=Object.keys(myXI||{}).length>=needed;
+  _setNavDot('nb-team',!hasTeam);
+  const hasPreds=(window._myWindowPreds||0)>0;
+  _setNavDot('nb-predict',!hasPreds);
+}
+function clearNavAlerts(){_setNavDot('nb-team',false);_setNavDot('nb-predict',false);}
+function _setNavDot(id,show){
+  const btn=document.getElementById(id);if(!btn)return;
+  let dot=btn.querySelector('.nb-alert');
+  if(show&&!dot){dot=document.createElement('div');dot.className='nb-alert';btn.appendChild(dot);}
+  else if(!show&&dot)dot.remove();
 }
 
 // ── UTILS ──
