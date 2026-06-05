@@ -2423,7 +2423,7 @@ function makeCard(card,opts={}){
     <div class="pcard-ctry">${esc(country)}</div>
     <span class="pcard-pos ${pos}">${pos}</span>
     <div class="pcard-pts">${card.points||0}</div>
-    <div class="pcard-pts-lbl">pts</div>`;
+    <div class="pcard-pts-lbl">pts earned</div>`;
   if(opts.onClick)el.addEventListener('click',()=>opts.onClick(card));
   // Duplicate badge (if myCards loaded and card has multiple copies)
   if(typeof myCards!=='undefined'&&myCards.length){
@@ -3138,9 +3138,11 @@ async function adminScoreMatch(){
   const assists=(document.getElementById('admin-assists').value||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
   const reds=(document.getElementById('admin-reds').value||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
   if(!ht||!at){toast('Enter both teams','err');return;}
-  const log=document.getElementById('admin-score-log');log.textContent='Scoring…';
+  const log=document.getElementById('admin-score-log');log.textContent='Scoring '+(CW.id||'unknown window')+'…';
   await fsAdd('matches',{homeTeam:ht,awayTeam:at,homeGoals:hg,awayGoals:ag,scorers,assists,reds,windowId:CW.id,status:'finished',scoredAt:ST()});
-  const allXIs=await fsList('xi');
+  // Only score XIs saved for the current window — prevents cross-window scoring
+  const allXIs=await fsList('xi',[['windowId','EQUAL',CW.id]]);
+  if(!allXIs.length){log.textContent='No XIs found for window '+CW.id+'. Has anyone saved a team?';return;}
   const homeWin=hg>ag,awayWin=ag>hg,draw=hg===ag,highScore=hg+ag>=3;
   const ops=[];let scored=0,updates=[];
   for(const xi of allXIs){
