@@ -502,12 +502,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
    </div>
   </div>
   <div id="s-packs" class="screen">
-   <div class="sh">Open a Card Pack</div><div class="ss">50 bricks · 3 random players</div>
-   <div class="pack-box">
-    <div style="font-size:52px;margin-bottom:10px;">📦</div>
-    <div style="font-family:var(--fh);font-size:18px;font-weight:900;margin-bottom:4px;">Standard Card Pack</div>
-    <div style="color:var(--muted);font-size:11px;margin-bottom:14px;line-height:1.5;">3 random player cards · Bronze 65% · Silver 25% · Gold 10%</div>
-    <button class="btn btn-primary btn-full" id="pack-btn" onclick="openPack()" style="font-size:15px;">Open Card Pack — 50 <span class="bk"></span></button>
+   <div class="sh">Card Packs</div><div class="ss">Spend bricks, collect players.</div>
+   <!-- Pack type selector -->
+   <div style="display:flex;gap:8px;margin-bottom:12px;">
+    <div class="ptbtn" data-t="standard" onclick="selectPackType('standard')" style="flex:1;background:var(--accent);border:2px solid var(--accent);border-radius:var(--rl);padding:11px 8px;text-align:center;cursor:pointer;">
+     <div style="font-family:var(--fh);font-size:13px;font-weight:800;color:#1a1000;">Standard Pack</div>
+     <div style="font-size:10px;color:#3a2000;margin-top:2px;">15 cards · B/S/G mix</div>
+     <div style="font-family:var(--fh);font-size:16px;font-weight:900;color:#1a1000;margin-top:5px;">50 <span style="font-size:12px;">bricks</span></div>
+    </div>
+    <div class="ptbtn" data-t="booster" onclick="selectPackType('booster')" style="flex:1;background:var(--surface);border:2px solid var(--border);border-radius:var(--rl);padding:11px 8px;text-align:center;cursor:pointer;">
+     <div style="font-family:var(--fh);font-size:13px;font-weight:800;color:var(--accent);">Booster Box</div>
+     <div style="font-size:10px;color:var(--muted);margin-top:2px;">40 cards · 5 Gold guaranteed</div>
+     <div style="font-family:var(--fh);font-size:16px;font-weight:900;color:var(--accent);margin-top:5px;">100 <span style="font-size:12px;">bricks</span></div>
+    </div>
+   </div>
+   <div id="pack-buy-area">
+    <button class="btn btn-primary btn-full" id="pack-btn" onclick="openPack()" style="font-size:15px;">Open Standard Pack — 50 <span class="bk"></span></button>
    </div>
    <div id="pack-reveal" class="hidden">
     <div style="font-family:var(--fh);font-weight:800;font-size:15px;text-transform:uppercase;text-align:center;margin-bottom:10px;">Your Cards</div>
@@ -2504,7 +2514,18 @@ function renderTeam(){
 }
 function pickPlayerModal(sk){
   const pos=sk.replace(/\d/g,'');
-  const elig=myCards.filter(c=>c.pos===pos&&c.status!=='listed'&&!Object.entries(myXI).find(([k,v])=>v===c.id&&k!==sk));
+  // Get names+countries already in XI (excluding current slot)
+  const xiPlayers=new Set(Object.entries(myXI)
+    .filter(([k])=>k!==sk)
+    .map(([k,v])=>{const card=myCards.find(c=>c.id===v);return card?card.name+'|'+card.country:null;})
+    .filter(Boolean));
+  // Eligible: right position, not listed, not already in another slot (by card ID OR by player name+country)
+  const elig=myCards.filter(c=>
+    c.pos===pos &&
+    c.status!=='listed' &&
+    !Object.entries(myXI).find(([k,v])=>v===c.id&&k!==sk) &&
+    !xiPlayers.has(c.name+'|'+c.country)
+  );
   openModal('Pick '+pos+' for '+sk,'');
   const grid=document.createElement('div');grid.className='pcards';
   if(!elig.length)grid.innerHTML='<div style="color:var(--muted);padding:16px;text-align:center;width:100%;">No '+pos+' cards available.</div>';
@@ -2534,7 +2555,7 @@ function renderCardsGrid(filter){
   // Show starter pack claim banner if player has no cards
   const claimBanner=document.getElementById('starter-claim-banner');
   if(claimBanner){
-    const hasCards=myCards.length>0; // Use actual loaded cards, not stored count
+    const hasCards=myCards.length>0||CU?.starterClaimed; // actual cards OR claimed flag
     claimBanner.style.display=hasCards?'none':'block';
   }
   const xiIds=new Set(Object.values(myXI));
@@ -2596,24 +2617,36 @@ async function cancelListing(card){
 
 
 // One-off free starter pack claim (for players who missed auto-pack on signup)
+let _claiming=false;
 async function claimStarterPack(){
   if(!CU){toast('Sign in first','err');return;}
-  if((CU.cardCount||0)>0){toast('You already have cards!','err');return;}
-  const btn=document.getElementById('claim-pack-btn');
-  if(btn){btn.disabled=true;btn.textContent='Claiming...';}
-  try{
-    await giveStarterPack(CU.id);
-    CU.cardCount=40;
-    updateHeader();
-    toast('40 starter cards claimed! Check My Cards ✅','ok');
-    // Hide the banner
-    const banner=document.getElementById('starter-claim-banner');
-    if(banner)banner.style.display='none';
-    renderCardsGrid('all');
-  }catch(e){
-    toast('Claim failed: '+e.message,'err');
-    if(btn){btn.disabled=false;btn.textContent='Claim Free Starter Pack';}
+  if(_claiming){toast('Already claiming...','err');return;}
+  // Fetch fresh player data from Firestore to get true cardCount
+  const fresh=await fsGet('players',CU.id);
+  if(fresh&&(fresh.cardCount||0)>0){
+    toast('You already have '+fresh.cardCount+' cards!','err');
+    document.querySelectorAll('.starter-claim-banner').forEach(b=>b.style.display='none');
+    return;
   }
+  _claiming=true;
+  const btns=[document.getElementById('claim-pack-btn'),document.getElementById('claim-pack-btn-home')];
+  btns.forEach(b=>{if(b){b.disabled=true;b.textContent='Claiming...';}});
+  try{
+    // Mark as claimed FIRST to prevent race condition
+    await fsUpdate('players',CU.id,{cardCount:1,starterClaimed:true});
+    await giveStarterPack(CU.id);
+    await loadCards();
+    CU.cardCount=40;updateHeader();
+    document.querySelectorAll('.starter-claim-banner').forEach(b=>b.style.display='none');
+    toast('40 starter cards claimed! ✅','ok');
+    renderCardsGrid('all');
+    goScreen('cards');
+  }catch(e){
+    toast('Claim failed: '+e.message+' — check Firestore rules','err');
+    console.error('Claim:',e);
+    btns.forEach(b=>{if(b){b.disabled=false;b.textContent='Claim 40 Free Cards';}});
+  }
+  _claiming=false;
 }
 
 // ── PACKS ──
