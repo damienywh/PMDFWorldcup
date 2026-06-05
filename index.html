@@ -5,6 +5,31 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>PMDF Brick Cup 2026</title>
+
+  <div id="s-built" class="screen">
+   <div class="sh">How this was built</div>
+   <div class="ss">Made entirely with Claude. No prior coding experience needed.</div>
+   <div style="background:var(--chrome2);border:1px solid var(--cb);border-radius:var(--rl);padding:14px;margin-bottom:12px;">
+    <div style="font-family:var(--fh);font-size:13px;font-weight:800;color:var(--accent);margin-bottom:6px;">The short version</div>
+    <div style="font-size:12px;color:var(--text);line-height:1.6;">
+     This game was built entirely through conversations with <strong>Claude</strong> (claude.ai). No traditional coding, no IDE. The whole thing is a single HTML file with vanilla JavaScript, deployed free on Cloudflare Pages, with Firebase Firestore as the database. Total build time: several evenings of prompting.
+    </div>
+   </div>
+   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:12px;margin-bottom:12px;">
+    <div style="font-family:var(--fh);font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Tech Stack</div>
+    <div style="font-size:11px;color:var(--text);line-height:2;">
+     <span style="color:var(--accent);font-weight:700;">Claude</span> (claude.ai) &mdash; everything<br>
+     <span style="color:var(--accent);font-weight:700;">HTML / CSS / JS</span> &mdash; single file, no framework<br>
+     <span style="color:var(--accent);font-weight:700;">Firebase Firestore</span> &mdash; database via REST API<br>
+     <span style="color:var(--accent);font-weight:700;">Firebase Auth</span> &mdash; Google sign-in<br>
+     <span style="color:var(--accent);font-weight:700;">Cloudflare Pages</span> &mdash; free hosting<br>
+     <span style="color:var(--accent);font-weight:700;">GitHub</span> &mdash; version control + deployment<br>
+     <span style="color:var(--accent);font-weight:700;">GitHub Actions</span> &mdash; automated scoring cron job
+    </div>
+   </div>
+   <div id="built-steps"></div>
+  </div>
+
 <!-- Firebase Auth loaded at end of body (synchronous, guaranteed order) -->
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 
@@ -259,6 +284,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
    <button class="btn btn-primary btn-full" style="font-size:16px;letter-spacing:.02em;" onclick="landShowJoin()">⚽ Play</button>
    <button class="btn btn-outline btn-full" style="font-size:14px;" onclick="showPubLb()">🏆 View Leaderboard</button>
    <button class="btn btn-ghost btn-full" style="font-size:13px;" onclick="landShowHowTo()">❓ How to Play</button>
+   <button class="btn btn-ghost btn-full" style="font-size:12px;opacity:0.7;" onclick="landShowBuilt()">🛠️ How this was built</button>
   </div>
   <span style="font-size:11px;color:var(--muted);cursor:pointer;font-family:var(--fm);text-decoration:underline;text-underline-offset:3px;" onclick="landShowAdmin()">Admin access</span>
 
@@ -647,7 +673,30 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
  <option value="Morocco"><option value="Japan"><option value="USA"><option value="Mexico">
  <option value="Senegal"><option value="Canada"><option value="Australia">
 </datalist>
-<div id="toast-ctr"></div>
+<div id="toast-ctr">
+  <div id="s-built" class="screen">
+   <div class="sh">How this was built</div>
+   <div class="ss">Made entirely with Claude. No prior coding experience needed.</div>
+   <div style="background:var(--chrome2);border:1px solid var(--cb);border-radius:var(--rl);padding:14px;margin-bottom:12px;">
+    <div style="font-family:var(--fh);font-size:13px;font-weight:800;color:var(--accent);margin-bottom:6px;">The short version</div>
+    <div style="font-size:12px;color:var(--text);line-height:1.6;">
+     This game was built entirely through conversations with <strong>Claude</strong> (claude.ai). No traditional coding, no IDE. The whole thing is a single HTML file with vanilla JavaScript, deployed free on Cloudflare Pages, with Firebase as the database. Total build time: several evenings of prompting.
+    </div>
+   </div>
+   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:12px;margin-bottom:12px;">
+    <div style="font-family:var(--fh);font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Tech Stack</div>
+    <div style="font-size:11px;color:var(--text);line-height:2;">
+     <span style="color:var(--accent);font-weight:700;">Claude</span> (claude.ai) &mdash; everything<br>
+     <span style="color:var(--accent);font-weight:700;">HTML / CSS / JS</span> &mdash; single file, no framework<br>
+     <span style="color:var(--accent);font-weight:700;">Firebase Firestore</span> &mdash; realtime database via REST API<br>
+     <span style="color:var(--accent);font-weight:700;">Firebase Auth</span> &mdash; Google sign-in<br>
+     <span style="color:var(--accent);font-weight:700;">Cloudflare Pages</span> &mdash; free hosting via GitHub<br>
+     <span style="color:var(--accent);font-weight:700;">GitHub Actions</span> &mdash; automated scoring cron job
+    </div>
+   </div>
+   <div id="built-steps"></div>
+  </div>
+</div>
 <div id="modal-bg" class="hidden" onclick="if(event.target===this)closeModal()">
  <div id="modal-box"><div class="modal-title" id="modal-title"></div><button id="modal-close" onclick="closeModal()">✕</button><div id="modal-body"></div></div>
 </div>
@@ -2085,8 +2134,10 @@ async function joinWithPin(){
     CU={id:newId,nickname:nick,firstName:fn||nick,bricks:120,points:0,cardCount:0};
     localStorage.setItem('brickcup_pid',newId);
     localStorage.setItem('brickcup_pinhash',pinHash);
-    try{await giveStarterPack(newId);}catch(e){console.warn("Pack failed:",e.message);toast("Signed up! Tap My Cards to claim your free pack ⚠️","ok");}
-await loadAll();launchApp();
+    await loadAll();launchApp();
+    toast('Welcome, '+nick+'! 🎉','ok');
+    // Give starter pack in background — claim banner is fallback
+    giveStarterPack(newId).catch(e=>console.warn('Pack failed:',e.message));
     toast('Welcome, '+nick+'! 🎉','ok');
   }catch(e){toast('Error: '+e.message,'err');}
   btn.disabled=false;btn.textContent='Create Account →';
@@ -2151,21 +2202,42 @@ async function googleSignIn(){
 async function finishGoogleSignup(){
   const nick=document.getElementById('nn-google').value.trim();
   if(!nick||nick.length<2){toast('Enter a nickname (2+ chars)','err');return;}
-  if(!/^[a-zA-Z0-9_. \-]+$/.test(nick)){toast('Nickname: letters, numbers, spaces only','err');return;}
-  const btn=document.getElementById('google-nick-btn');btn.disabled=true;btn.textContent='Creating account…';
+  if(!/^[a-zA-Z0-9_. -]+$/.test(nick)){toast('Letters, numbers, spaces only','err');return;}
+  const user=window._pendingGoogleUser;
+  if(!user){toast('Session expired — please sign in again','err');landShowAuthChoice();return;}
+  const btn=document.getElementById('google-nick-btn');
+  if(btn){btn.disabled=true;btn.textContent='Creating…';}
   try{
-    const existing=await fsList('players',[['nickname','EQUAL',nick]]);
-    if(existing.length){toast('Nickname taken — pick another','err');btn.disabled=false;btn.textContent='Let\u2019s go \u2192';return;}
-    const user=window._pendingGoogleUser;
+    // Check if this Google UID already has a player (e.g. from a previous partial signup)
+    const byUid=await fsList('players',[['googleUid','EQUAL',user.uid]]);
+    if(byUid.length){
+      // Player already exists - just log them in
+      CU={id:byUid[0].id,...byUid[0]};
+      localStorage.setItem('brickcup_pid',byUid[0].id);
+      await loadAll();launchApp();
+      toast('Welcome back, '+CU.nickname+'!','ok');
+      return;
+    }
+    // Check nickname availability
+    const byNick=await fsList('players',[['nickname','EQUAL',nick]]);
+    if(byNick.length){toast('Nickname taken — pick another','err');if(btn){btn.disabled=false;btn.textContent='Let’s go →';}return;}
+    // Create player
+    const legoTeam=(document.getElementById('team-google')||{value:''}).value.trim();
     const fn=(user.displayName||nick).split(' ')[0];
-    const newId=await fsAdd('players',{nickname:nick,firstName:fn,googleUid:user.uid,googleEmail:user.email,bricks:120,points:0,joinedAt:ST(),cardCount:0,authMethod:'google'});
-    CU={id:newId,nickname:nick,firstName:fn,bricks:120,points:0,cardCount:0};
+    const newId=await fsAdd('players',{nickname:nick,firstName:fn,googleUid:user.uid,googleEmail:user.email,bricks:120,points:0,joinedAt:ST(),cardCount:0,authMethod:'google',legoTeam});
+    CU={id:newId,nickname:nick,firstName:fn,googleUid:user.uid,bricks:120,points:0,cardCount:0};
     localStorage.setItem('brickcup_pid',newId);
-    try{await giveStarterPack(newId);}catch(e){console.warn("Pack failed:",e.message);toast("Signed up! Tap My Cards to claim your free pack ⚠️","ok");}
-await loadAll();launchApp();
+    // Launch app immediately - don't block on pack
+    await loadAll();launchApp();
     toast('Welcome, '+nick+'! 🎉','ok');
-  }catch(e){toast('Error: '+e.message,'err');}
-  btn.disabled=false;btn.textContent='Let\u2019s go \u2192';
+    // Give starter pack in background
+    giveStarterPack(newId).catch(e=>{
+      console.warn('Pack failed (use claim button):',e.message);
+    });
+  }catch(e){
+    toast('Error: '+e.message,'err');
+    if(btn){btn.disabled=false;btn.textContent='Let’s go →';}
+  }
 }
 
 async function cancelGoogleSignup(){
@@ -3073,6 +3145,98 @@ async function buyStoreCard(listing){
   updateHeader();
   toast('Bought '+listing.cardName+'! ⚡','ok');
   renderMkt();
+}
+
+// ── HOW IT WAS BUILT ──
+function landShowBuilt(){H('landing');S('app');buildBuiltSteps();goScreen('built');}
+
+const BUILT_STEPS=[
+  {
+    n:1,
+    t:'Start with a clear brief',
+    d:'The first prompt was the most important. Be specific about what you want, who it\'s for, and what constraints you have.',
+    example:'Build a fantasy card-collecting game for 30 colleagues at a finance company. World Cup theme. Players collect cards of real footballers, pick a Starting 11, and earn points based on real match results. Single HTML file. Firebase for data. Mobile-first.',
+    tip:'The more context you give upfront, the less back-and-forth later. Include: audience, platform, tech constraints, and the core loop.'
+  },
+  {
+    n:2,
+    t:'Set up your infrastructure first',
+    d:'Before any game logic, get the boring stuff working: hosting, database, and deployment pipeline. Claude can walk you through every step.',
+    example:'Help me set up a Firebase project with Firestore database for a web app. I want to use the REST API (no SDK) so I can keep everything in a single HTML file. Walk me through creating the project, enabling Firestore, setting the rules to allow public read/write, and getting the API key.',
+    tip:'Ask Claude to explain each step as it goes. You\'ll learn the concepts even if you\'re not writing the code yourself.'
+  },
+  {
+    n:3,
+    t:'Build the data model before the UI',
+    d:'Agree on how data is structured in the database before building screens. Changing it later is painful.',
+    example:'Before we build any UI, let\'s design the Firestore data model. I need: players (users), cards (owned by players), xi (their Starting 11), listings (market), predictions, and game config. Show me what each document looks like with example field values.',
+    tip:'Ask Claude to draw it out as a simple table or JSON example. If it looks complicated, push back and ask for a simpler version.'
+  },
+  {
+    n:4,
+    t:'Build in vertical slices',
+    d:'Don\'t build everything at once. Get one complete feature working end-to-end before moving to the next.',
+    example:'Let\'s build just the sign-up flow first. PIN-based login, nickname, store in Firestore, auto-login on return. Don\'t worry about cards or teams yet. Get this working completely.',
+    tip:'After each slice, test it for real. Bugs caught early are 10x easier to fix than bugs found after 3 more features are built on top.'
+  },
+  {
+    n:5,
+    t:'Share error messages verbatim',
+    d:'When something breaks, copy the exact console error and paste it to Claude. Don\'t paraphrase — the exact error text is what Claude needs.',
+    example:'Getting this in the console: "Access to fetch at https://firestore.googleapis.com... has been blocked by CORS policy: No \'Access-Control-Allow-Origin\' header". The fetch is a POST to runQuery. What\'s wrong?',
+    tip:'Open browser DevTools (F12), go to the Console tab. Copy everything red. The more detail, the faster the fix.'
+  },
+  {
+    n:6,
+    t:'Upload your file for context',
+    d:'As the file gets larger, Claude\'s memory of earlier decisions fades. Upload the current HTML file at the start of each session so Claude can read the actual code.',
+    example:'[Upload file] Here\'s the current index.html. I want to add a transfer market where players can list cards for sale. Other players can browse and buy. 10% fee. Max 3 listings per player. Build this on top of what\'s already there.',
+    tip:'Starting a new conversation? Always upload the file first. Claude will audit it before making changes rather than guessing at the current state.'
+  },
+  {
+    n:7,
+    t:'Ask for audits before going live',
+    d:'Before sharing with real users, ask Claude to do a full bug sweep. It\'s surprisingly good at finding its own mistakes.',
+    example:'Before I share this with my team, do a full audit. Check: all Firestore URLs are correct, no duplicate function definitions, all async functions have error handling, no hardcoded test values, mobile layout works at 380px, the scoring logic matches the rules in How to Play.',
+    tip:'Be specific about what to check. "Check for bugs" is too vague. List the specific categories of things that could go wrong.'
+  },
+  {
+    n:8,
+    t:'Keep a running change log',
+    d:'In long sessions, tell Claude what version you\'re on and what changed since last time. This reduces the chance of fixes being re-introduced as bugs.',
+    example:'Quick context before we continue: the last working build had these features [list]. The version I\'m uploading now is missing X and Y which broke in the last session. Here\'s the exact error I\'m seeing. Please fix only those two things without touching anything else.',
+    tip:'The phrase "without touching anything else" is powerful. It stops Claude from helpfully refactoring things that were already working.'
+  },
+];
+
+function buildBuiltSteps(){
+  const con=document.getElementById('built-steps');
+  if(!con||con.children.length>0)return;
+  BUILT_STEPS.forEach((step,i)=>{
+    const div=document.createElement('div');
+    div.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:8px;overflow:hidden;';
+    const hdr=document.createElement('div');
+    hdr.style.cssText='display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;';
+    hdr.innerHTML='<div style="font-family:var(--fh);font-size:13px;font-weight:900;color:var(--accent);min-width:20px;">'+step.n+'</div>'
+      +'<div style="font-family:var(--fh);font-size:13px;font-weight:700;flex:1;">'+step.t+'</div>'
+      +'<div class="htp-chev" style="color:var(--muted);font-size:18px;transition:transform .2s;">\u203a</div>';
+    const body=document.createElement('div');
+    body.style.cssText='display:none;padding:0 14px 14px;';
+    body.innerHTML='<div style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:10px;">'+step.d+'</div>'
+      +'<div style="background:var(--surface);border-left:3px solid var(--accent);border-radius:0 var(--r) var(--r) 0;padding:10px 12px;margin-bottom:8px;">'
+      +'<div style="font-size:9px;font-family:var(--fm);color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Example prompt</div>'
+      +'<div style="font-size:11px;color:var(--text);line-height:1.6;font-style:italic;">&ldquo;'+esc(step.example)+'&rdquo;</div>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--muted);line-height:1.5;">'
+      +'<span style="color:var(--accent);font-weight:700;">Tip:</span> '+esc(step.tip)+'</div>';
+    hdr.onclick=()=>{
+      const open=body.style.display!=='none';
+      body.style.display=open?'none':'block';
+      hdr.querySelector('.htp-chev').style.transform=open?'':'rotate(90deg)';
+    };
+    div.appendChild(hdr);div.appendChild(body);
+    con.appendChild(div);
+  });
 }
 
 // ── UTILS ──
