@@ -2095,7 +2095,7 @@ let cardFilter='all',mktFlt='all',isAdmin=false,GS={locked:false,lockMsg:'Game p
 // Game state polling
 fsListen('gameState',()=>fsGet('config','gameState'),doc=>{
   if(!doc)return; GS=doc;
-  const ov=document.getElementById('game-locked');
+  const ov=document.getElementById('game-locked',60000);
   if(GS.locked&&!isAdmin){ov.classList.remove('hidden');document.getElementById('gl-msg').textContent=GS.lockMsg||'Game paused.';}
   else ov.classList.add('hidden');
 },15000);
@@ -2314,13 +2314,28 @@ function renderLbRows(players,container,myId){
 async function giveStarterPack(pid){
   const cards=drawCards(40);
   const _t=Date.now();
+  // Try batchWrite first (fast), fall back to individual writes (slower but works if batch is blocked)
   const cardOps=cards.map((card,i)=>({
     op:'set',col:'cards',
     id:'c'+_t+'_'+i+'_'+Math.random().toString(36).slice(2,5),
     data:{...card,ownerId:pid,points:0,status:'owned',acquiredAt:ST()}
   }));
-  await fsBatch(cardOps);
-  await fsUpdate('players',pid,{cardCount:INC(40)});
+  try{
+    await fsBatch(cardOps);
+  }catch(batchErr){
+    console.warn('[Pack] batchWrite failed, using individual writes:',batchErr.message);
+    // Fall back: write each card individually via fsSet
+    for(const op of cardOps){
+      await fsSet(op.col,op.id,op.data);
+    }
+  }
+  // Update player count separately
+  try{
+    await fsUpdate('players',pid,{cardCount:INC(40)});
+  }catch(e){
+    // If INC fails, just set the count directly
+    await fsSet('players',pid,{cardCount:40});
+  }
   await new Promise(r=>setTimeout(r,1200));
   console.log('[Pack] 40 cards written for',pid);
 }
@@ -2339,11 +2354,11 @@ async function loadWindow(){
   if(ws.length){CW=ws[0];}
   else{const id=await fsAdd('windows',{number:1,open:true,locked:false,createdAt:ST()});CW={id,number:1,open:true,locked:false};}
   // Auto-seed store if this window is open (handles cron-opened windows)
-  if(CW.open&&!CW.locked)seedWindowStore(CW.number||1).catch(e=>console.warn('Store seed:',e.message));
+  // seedWindowStore runs from admin panel only (non-admins get 403 on batch writes if rules are locked)
   fsListen('window',()=>fsList('windows',[],{orderBy:'createdAt',dir:'DESCENDING',limit:1}),ws=>{
     if(ws.length){
       const prev=CW.number;CW=ws[0];
-      if(CW.open&&!CW.locked&&CW.number!==prev)seedWindowStore(CW.number||1).catch(e=>console.warn('Store seed:',e.message));
+      if(CW.open&&!CW.locked&&CW.number!==prev){/* store seeded by admin */}
       refreshUI();
     }
   });
@@ -2354,7 +2369,21 @@ async function loadListings(){
   allListings=await fsList('listings',[['status','EQUAL','active']]);
   fsListen('listings',()=>fsList('listings',[['status','EQUAL','active']]),s=>{allListings=s;if(document.getElementById('s-market').classList.contains('active'))renderMkt();});
 }
-function launchApp(){H('landing');H('pub-lb');H('admin-screen');S('app');buildHowTo();buildBracket();updateHeader();goScreen('home');}
+function launchApp(){
+  H('landing');H('pub-lb');H('admin-screen');S('app');
+  buildHowTo();buildBracket();updateHeader();goScreen('home');
+  // Create gameState doc if missing (stops 404 polling spam)
+  fsGet('config','gameState').then(gs=>{
+    if(!gs)fsSet('config','gameState',{init:true,v:1,createdAt:ST()}).catch(()=>{});
+  }).catch(()=>{});
+  // Retry starter cards in background if player has none
+  setTimeout(()=>{
+    if(CU&&myCards.length===0&&(CU.cardCount||0)===0){
+      const hb=document.getElementById('home-claim-banner');
+      if(hb)hb.style.display='block';
+    }
+  },2000);
+}
 
 // ── SCREENS ──
 const SCREENS=['home','team','cards','packs','market','predict','lb','bracket','album','howto'];
