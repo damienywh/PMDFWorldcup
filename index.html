@@ -2422,6 +2422,18 @@ function makeCard(card,opts={}){
     <div class="pcard-pts">${card.points||0}</div>
     <div class="pcard-pts-lbl">pts</div>`;
   if(opts.onClick)el.addEventListener('click',()=>opts.onClick(card));
+  // Duplicate badge (if myCards loaded and card has multiple copies)
+  if(typeof myCards!=='undefined'&&myCards.length){
+    const pk=(card.name||card.n)+'|'+(card.country||card.c);
+    const dc=myCards.filter(mc=>(mc.name||mc.n)+'|'+(mc.country||mc.c)===pk).length;
+    if(dc>1){
+      const db=document.createElement('div');
+      db.style.cssText='position:absolute;top:4px;left:4px;background:#e74c3c;color:#fff;'
+        +'font-family:var(--fh);font-size:9px;font-weight:900;padding:2px 5px;border-radius:4px;z-index:2;';
+      db.textContent='×'+dc+' copies';
+      el.appendChild(db);
+    }
+  }
   return el;
 }
 
@@ -2467,7 +2479,19 @@ function renderHome(){
   });
 }
 
-const FORMATIONS={'433':{label:'4-3-3',rows:{GK:1,DEF:4,MID:3,FWD:3}},'442':{label:'4-4-2',rows:{GK:1,DEF:4,MID:4,FWD:2}},'4231':{label:'4-2-3-1',rows:{GK:1,DEF:4,CDM:2,ATT:3,FWD:1}},'352':{label:'3-5-2',rows:{GK:1,DEF:3,MID:5,FWD:2}},'532':{label:'5-3-2',rows:{GK:1,DEF:5,MID:3,FWD:2}}};
+const FORMATIONS={
+  '433':{label:'4-3-3',rows:{GK:1,DEF:4,MID:3,FWD:3},cardPos:{}},
+  '442':{label:'4-4-2',rows:{GK:1,DEF:4,MID:4,FWD:2},cardPos:{}},
+  '4231':{label:'4-2-3-1',rows:{GK:1,DEF:4,CDM:2,ATT:3,FWD:1},cardPos:{CDM:'MID',ATT:'MID'}},
+  '352':{label:'3-5-2',rows:{GK:1,DEF:3,MID:5,FWD:2},cardPos:{}},
+  '532':{label:'5-3-2',rows:{GK:1,DEF:5,MID:3,FWD:2},cardPos:{}},
+};
+// Get the actual card position for a slot key (e.g. CDM→MID, ATT→MID)
+function slotCardPos(sk){
+  const pos=sk.replace(/\d+$/,'');
+  const fm=FORMATIONS[currentFormation];
+  return(fm&&fm.cardPos&&fm.cardPos[pos])||pos;
+}
 let currentFormation='433';
 function setFormation(f){
   if(!FORMATIONS[f])return;
@@ -2513,31 +2537,134 @@ function renderTeam(){
   if(fillBtn){fillBtn.disabled=CW.locked;}
 }
 function pickPlayerModal(sk){
-  const pos=sk.replace(/\d/g,'');
-  // Get names+countries already in XI (excluding current slot)
-  const xiPlayers=new Set(Object.entries(myXI)
-    .filter(([k])=>k!==sk)
-    .map(([k,v])=>{const card=myCards.find(c=>c.id===v);return card?card.name+'|'+card.country:null;})
+  const cardPos=slotCardPos(sk);
+  const slotLabel=sk.replace(/\d+$/,'');
+  // Cards already in other slots (by ID and by player name+country)
+  const xiIds=new Set(Object.entries(myXI).filter(([k])=>k!==sk).map(([,v])=>v));
+  const xiPlayers=new Set(Object.entries(myXI).filter(([k])=>k!==sk)
+    .map(([,v])=>{const card=myCards.find(c=>c.id===v);return card?card.name+'|'+card.country:null;})
     .filter(Boolean));
-  // Eligible: right position, not listed, not already in another slot (by card ID OR by player name+country)
-  const elig=myCards.filter(c=>
-    c.pos===pos &&
-    c.status!=='listed' &&
-    !Object.entries(myXI).find(([k,v])=>v===c.id&&k!==sk) &&
-    !xiPlayers.has(c.name+'|'+c.country)
+  // All eligible cards for this slot
+  const allElig=myCards.filter(card=>
+    card.pos===cardPos &&
+    card.status!=='listed' &&
+    !xiIds.has(card.id) &&
+    !xiPlayers.has(card.name+'|'+card.country)
   );
-  openModal('Pick '+pos+' for '+sk,'');
-  const grid=document.createElement('div');grid.className='pcards';
-  if(!elig.length)grid.innerHTML='<div style="color:var(--muted);padding:16px;text-align:center;width:100%;">No '+pos+' cards available.</div>';
-  elig.forEach(c=>grid.appendChild(makeCard(c,{selected:myXI[sk]===c.id,onClick:card=>{myXI[sk]=card.id;closeModal();renderTeam();}})));
-  document.getElementById('modal-body').appendChild(grid);
-  if(myXI[sk]){const btn=document.createElement('button');btn.className='btn btn-ghost btn-full';btn.style.marginTop='10px';btn.textContent='✕ Remove';btn.onclick=()=>{delete myXI[sk];closeModal();renderTeam();};document.getElementById('modal-body').appendChild(btn);}
+  // Count duplicates per player
+  const dupeMap={};
+  myCards.forEach(card=>{
+    const k=card.name+'|'+card.country;
+    dupeMap[k]=(dupeMap[k]||0)+1;
+  });
+
+  // Build modal
+  openModal('Pick '+slotLabel,'');
+  const body=document.getElementById('modal-body');
+
+  // Filter bar
+  const filterBar=document.createElement('div');
+  filterBar.style.cssText='display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;';
+  const searchInput=document.createElement('input');
+  searchInput.className='ti';searchInput.placeholder='Search name or country...';
+  searchInput.style.cssText='flex:1;min-width:120px;font-size:13px;padding:6px 10px;';
+  // Country dropdown
+  const countries=[...new Set(allElig.map(c=>c.country))].sort();
+  const countrySelect=document.createElement('select');
+  countrySelect.className='ti';
+  countrySelect.style.cssText='font-size:12px;padding:6px 8px;max-width:130px;';
+  countrySelect.innerHTML='<option value="">All nations</option>'+
+    countries.map(co=>'<option value="'+esc(co)+'">'+esc(co)+'</option>').join('');
+  // Rarity filter
+  const raritySelect=document.createElement('select');
+  raritySelect.className='ti';
+  raritySelect.style.cssText='font-size:12px;padding:6px 8px;max-width:90px;';
+  raritySelect.innerHTML='<option value="">All</option><option value="gold">🥇 Gold</option><option value="silver">🥈 Silver</option><option value="bronze">Bronze</option>';
+  filterBar.appendChild(searchInput);
+  filterBar.appendChild(countrySelect);
+  filterBar.appendChild(raritySelect);
+  body.appendChild(filterBar);
+
+  // Count + info
+  const countEl=document.createElement('div');
+  countEl.style.cssText='font-size:11px;color:var(--muted);margin-bottom:8px;font-family:var(--fm);';
+  body.appendChild(countEl);
+
+  // Card grid
+  const grid=document.createElement('div');
+  grid.className='pcards';
+  grid.style.cssText='max-height:55vh;overflow-y:auto;';
+  body.appendChild(grid);
+
+  // Remove button
+  if(myXI[sk]){
+    const rem=document.createElement('button');
+    rem.className='btn btn-ghost btn-full';
+    rem.style.marginTop='10px';
+    rem.textContent='✕ Remove player from this slot';
+    rem.onclick=()=>{delete myXI[sk];closeModal();renderTeam();};
+    body.appendChild(rem);
+  }
+
+  // Render function with filters
+  function renderPickerCards(){
+    grid.innerHTML='';
+    const search=searchInput.value.toLowerCase();
+    const nation=countrySelect.value;
+    const rar=raritySelect.value;
+    const filtered=allElig.filter(card=>{
+      if(search&&!card.name.toLowerCase().includes(search)&&!card.country.toLowerCase().includes(search))return false;
+      if(nation&&card.country!==nation)return false;
+      if(rar&&(card.rarity||card.r)!==rar)return false;
+      return true;
+    });
+    countEl.textContent=filtered.length+' player'+(filtered.length!==1?'s':'')+(allElig.length!==filtered.length?' (filtered from '+allElig.length+')':'');
+    if(!filtered.length){
+      grid.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center;width:100%;font-size:12px;">'
+        +(allElig.length?'No cards match this filter.':'You have no '+cardPos+' cards available.')+'</div>';
+      return;
+    }
+    filtered.forEach(card=>{
+      const el=makeCard(card,{
+        selected:myXI[sk]===card.id,
+        onClick:chosen=>{myXI[sk]=chosen.id;closeModal();renderTeam();}
+      });
+      // Duplicate badge
+      const dupes=dupeMap[card.name+'|'+card.country]||1;
+      if(dupes>1){
+        const badge=document.createElement('div');
+        badge.style.cssText='position:absolute;top:4px;left:4px;background:#e74c3c;color:#fff;'
+          +'font-family:var(--fh);font-size:9px;font-weight:900;padding:2px 5px;border-radius:4px;z-index:2;';
+        badge.textContent='×'+dupes+' copies';
+        el.appendChild(badge);
+      }
+      grid.appendChild(el);
+    });
+  }
+  renderPickerCards();
+  searchInput.addEventListener('input',renderPickerCards);
+  countrySelect.addEventListener('change',renderPickerCards);
+  raritySelect.addEventListener('change',renderPickerCards);
+  // Auto-focus search
+  setTimeout(()=>searchInput.focus(),100);
 }
+
 function autoFill(){
   const rs={gold:3,silver:2,bronze:1};
   const sorted=[...myCards].filter(c=>c.status!=='listed').sort((a,b)=>(rs[b.rarity||b.r]||0)-(rs[a.rarity||a.r]||0)||(b.points||0)-(a.points||0));
-  const used=new Set();const nxi={};
-  const fill=(pos,n)=>{let f=0;for(const c of sorted){if(f>=n)break;if(c.pos===pos&&!used.has(c.id)){nxi[pos+(n>1?f+1:'')]=c.id;used.add(c.id);f++;}}};
+  const usedIds=new Set();
+  const usedPlayers=new Set(); // track name+country to prevent duplicate real-world players
+  const nxi={};
+  const fill=(pos,n)=>{let f=0;for(const card of sorted){
+    if(f>=n)break;
+    const pk=card.name+'|'+card.country;
+    if(card.pos===pos&&!usedIds.has(card.id)&&!usedPlayers.has(pk)){
+      nxi[pos+(n>1?f+1:'')]=card.id;
+      usedIds.add(card.id);
+      usedPlayers.add(pk);
+      f++;
+    }
+  }};
   const fmR=FORMATIONS[currentFormation]?FORMATIONS[currentFormation].rows:{GK:1,DEF:4,MID:3,FWD:3};
   Object.entries(fmR).forEach(([pos,n])=>fill(pos,n));
   myXI=nxi;renderTeam();toast('Auto-filled ⚡','ok');
@@ -3015,6 +3142,7 @@ async function adminScoreMatch(){
   const ops=[];let scored=0,updates=[];
   for(const xi of allXIs){
     const slots=xi.slots||{};
+    const scoredPlayers=new Set(); // prevent same real-world player scoring twice
     for(const cardId of Object.values(slots)){
       const card=await fsGet('cards',cardId);if(!card)continue;
       const isH=card.country===ht,isA=card.country===at;if(!isH&&!isA)continue;
@@ -3146,8 +3274,8 @@ function renderAlbum(){
       pl.textContent=isOwned?'pts':'not owned';if(!isOwned)pl.style.color='var(--muted)';el.appendChild(pl);
       if(dupeCount>1){
         const d=document.createElement('div');
-        d.style.cssText='position:absolute;top:5px;left:5px;background:var(--blue);color:#fff;font-size:8px;padding:2px 4px;border-radius:3px;font-weight:700;font-family:var(--fm);';
-        d.textContent='x'+dupeCount;el.appendChild(d);
+        d.style.cssText='position:absolute;top:4px;left:4px;background:#e74c3c;color:#fff;font-size:9px;font-weight:900;font-family:var(--fh);padding:2px 6px;border-radius:4px;z-index:2;letter-spacing:0;box-shadow:0 1px 3px rgba(0,0,0,.4);';
+        d.textContent='×'+dupeCount+' copies';el.appendChild(d);
       }
       grid.appendChild(el);
     });
