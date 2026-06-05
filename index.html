@@ -285,7 +285,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
    <button class="btn btn-primary btn-full" style="font-size:16px;letter-spacing:.02em;" onclick="landShowJoin()">⚽ Play</button>
    <button class="btn btn-outline btn-full" style="font-size:14px;" onclick="showPubLb()">🏆 View Leaderboard</button>
    <button class="btn btn-ghost btn-full" style="font-size:13px;" onclick="landShowHowTo()">❓ How to Play</button>
-   <button class="btn btn-ghost btn-full" style="font-size:12px;opacity:0.7;" onclick="landShowBuilt()">🛠️ How this was built</button>
+  </div>
+  <!-- How this was built teaser -->
+  <div onclick="landShowBuilt()" style="width:100%;margin-bottom:14px;background:linear-gradient(135deg,rgba(255,183,0,.08),rgba(255,183,0,.03));border:1px solid rgba(255,183,0,.25);border-radius:var(--rl);padding:13px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;">
+   <div style="font-size:28px;flex-shrink:0;">🛠️</div>
+   <div style="flex:1;min-width:0;">
+    <div style="font-family:var(--fh);font-size:13px;font-weight:800;color:var(--accent);margin-bottom:2px;">Built with Claude — no coding</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.4;">See the actual prompts used to build this game from scratch. Includes copy-paste examples.</div>
+   </div>
+   <div style="color:var(--accent);font-size:18px;flex-shrink:0;">›</div>
   </div>
   <span style="font-size:11px;color:var(--muted);cursor:pointer;font-family:var(--fm);text-decoration:underline;text-underline-offset:3px;" onclick="landShowAdmin()">Admin access</span>
 
@@ -634,6 +642,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
   <button class="nb" id="nb-lb" onclick="goScreen('lb')"><span>🏆</span><span>Rank</span></button>
   <button class="nb" id="nb-album" onclick="goScreen('album')"><span>📒</span><span>Album</span></button>
   <button class="nb" id="nb-howto" onclick="goScreen('howto')"><span>❓</span><span>Rules</span></button>
+  <button class="nb" id="nb-built" onclick="goScreen('built');buildBuiltSteps()"><span>🛠️</span><span>Built</span></button>
  </nav>
 </div>
 
@@ -2398,7 +2407,7 @@ function launchApp(){
 }
 
 // ── SCREENS ──
-const SCREENS=['home','team','cards','packs','market','predict','lb','bracket','album','howto'];
+const SCREENS=['home','team','cards','packs','market','predict','lb','bracket','album','howto','built'];
 function goScreen(name){
   SCREENS.forEach(s=>{document.getElementById('s-'+s)?.classList.remove('active');document.getElementById('nb-'+s)?.classList.remove('active');});
   document.getElementById('s-'+name)?.classList.add('active');
@@ -3356,59 +3365,90 @@ function landShowBuilt(){H('landing');S('app');buildBuiltSteps();goScreen('built
 const BUILT_STEPS=[
   {
     n:1,
-    t:'Start with a clear brief',
-    d:'The first prompt was the most important. Be specific about what you want, who it\'s for, and what constraints you have.',
-    example:'Build a fantasy card-collecting game for 30 colleagues at a finance company. World Cup theme. Players collect cards of real footballers, pick a Starting 11, and earn points based on real match results. Single HTML file. Firebase for data. Mobile-first.',
-    tip:'The more context you give upfront, the less back-and-forth later. Include: audience, platform, tech constraints, and the core loop.'
+    t:'The brief: one sentence that does all the work',
+    d:'The very first message to Claude sets the constraints for everything that follows. Be ruthlessly specific about audience, platform, and the one thing the game must do.',
+    prompts:[
+      {label:'Opening brief',text:'Build a fantasy card-collecting game for ~30 colleagues at the LEGO finance team. World Cup 2026 theme. Players collect cards of real footballers, pick a Starting 11, and earn points based on real match results. Economy: bricks (in-game currency), card packs, a transfer market. Single HTML file, no frameworks. Firebase Firestore for the database via REST API only — no SDK, so I can keep everything in one file. Mobile-first. Deploy to Cloudflare Pages.'},
+      {label:'Pushing back when it got complicated',text:'That data model is too complex. I want one document per player, one per card, one per XI. Keep it flat. No nested collections. Show me the simplest possible version that still works.'},
+    ],
+    tip:'The constraint "single HTML file, no framework" saved weeks of setup. Claude optimises hard for whatever constraints you give it — so give it the right ones upfront.'
   },
   {
     n:2,
-    t:'Set up your infrastructure first',
-    d:'Before any game logic, get the boring stuff working: hosting, database, and deployment pipeline. Claude can walk you through every step.',
-    example:'Help me set up a Firebase project with Firestore database for a web app. I want to use the REST API (no SDK) so I can keep everything in a single HTML file. Walk me through creating the project, enabling Firestore, setting the rules to allow public read/write, and getting the API key.',
-    tip:'Ask Claude to explain each step as it goes. You\'ll learn the concepts even if you\'re not writing the code yourself.'
+    t:'Firebase setup: getting the plumbing right',
+    d:'Firebase Firestore via REST API (no SDK) is the hardest part to get right. The URLs are fiddly and Claude occasionally reverts them. We pinned them early and kept checking.',
+    prompts:[
+      {label:'Setting up the Firestore REST layer',text:'Write me a minimal set of JavaScript helper functions to talk to Firestore via REST. I need: fsGet(col, id), fsAdd(col, data), fsSet(col, id, data), fsUpdate(col, id, data), fsDel(col, id), fsList(col, filters), and fsBatch(ops). Use fetch() only. The project ID is [redacted]. Return null on 404, throw on other errors. The runQuery endpoint must be at /databases/(default)/documents:runQuery — not databases/(default):runQuery, that was a bug in your last version.'},
+      {label:'When batchWrite kept returning 403',text:'batchWrite is returning 403 PERMISSION_DENIED. My Firestore rules are allow read, write: if true. Here is the exact error from the console: [paste]. The batchWrite URL in my code is databases/(default):batchWrite — is that wrong? Also check if the document name format is correct for the writes array.'},
+      {label:'After the Firestore URL kept reverting',text:'Every time you rebuild from the base file, the _QRY constant reverts to databases/(default):runQuery instead of databases/(default)/documents:runQuery. Add a comment above it that says DO NOT CHANGE THIS URL and check it is correct every time you touch this file.'},
+    ],
+    tip:'The single most common bug throughout this build was the Firestore REST URL reverting. Explicitly name the known bug in your prompts so Claude watches for it.'
   },
   {
     n:3,
-    t:'Build the data model before the UI',
-    d:'Agree on how data is structured in the database before building screens. Changing it later is painful.',
-    example:'Before we build any UI, let\'s design the Firestore data model. I need: players (users), cards (owned by players), xi (their Starting 11), listings (market), predictions, and game config. Show me what each document looks like with example field values.',
-    tip:'Ask Claude to draw it out as a simple table or JSON example. If it looks complicated, push back and ask for a simpler version.'
+    t:'Authentication: PIN login + Google OAuth',
+    d:'We needed two login methods: a simple PIN for non-Google users, and Google OAuth for everyone else. The popup approach had COOP warnings but worked. The redirect approach broke everything.',
+    prompts:[
+      {label:'PIN login design',text:'Build a PIN-based login system. No email required. Player picks a nickname and a 4-digit PIN. Store a SHA-256 hash of the PIN in Firestore — never the PIN itself. On return visits, auto-login by checking localStorage for the player ID and verifying the hash matches. If hash doesn\'t match, clear localStorage and show login screen.'},
+      {label:'Google OAuth with popup',text:'Add Google sign-in using Firebase Auth compat SDK. Use signInWithPopup, not signInWithRedirect — redirect breaks on Cloudflare Pages. After popup resolves, check if a player doc exists for that Google UID. If yes, log them in. If no, show a nickname picker screen. The finishGoogleSignup function must check for duplicate nicknames before creating the player.'},
+      {label:'Fixing the "Let\'s go" button not working',text:'After Google sign-in, the nickname panel shows but clicking "Let\'s go" does nothing. No console errors. The button has onclick="finishGoogleSignup()" but I think finishGoogleSignup is missing from the current build. Check if the function exists. If it doesn\'t, add it. It should: validate the nickname, check for duplicates via fsList, create the player doc, call giveStarterPack, then call loadAll and launchApp.'},
+    ],
+    tip:'Any time a button does nothing and there\'s no console error, the function it calls is either missing or out of scope. Tell Claude the symptom and ask it to check function existence first.'
   },
   {
     n:4,
-    t:'Build in vertical slices',
-    d:'Don\'t build everything at once. Get one complete feature working end-to-end before moving to the next.',
-    example:'Let\'s build just the sign-up flow first. PIN-based login, nickname, store in Firestore, auto-login on return. Don\'t worry about cards or teams yet. Get this working completely.',
-    tip:'After each slice, test it for real. Bugs caught early are 10x easier to fix than bugs found after 3 more features are built on top.'
+    t:'Game economy: cards, packs, bricks',
+    d:'The card pack system had repeated bugs — wrong card count, duplicate IDs, and the starter pack failing silently. Each took a specific prompt to diagnose and fix.',
+    prompts:[
+      {label:'Starter pack design',text:'When a new player registers, automatically give them 40 free cards and 120 bricks. The card IDs must be globally unique — use Date.now() plus a loop index plus a random suffix to prevent collisions when multiple cards are written in one batch. Write the 40 cards first via fsBatch, then update the player\'s cardCount separately via fsUpdate — do not mix INC() transforms and regular field writes in the same batch operation, it causes 403 errors.'},
+      {label:'When the pack silently failed',text:'Players are registering but getting 0 cards. The console shows the signup completes but no cards appear in Firestore. My giveStarterPack function uses fsBatch to write 40 cards. Could this be hitting Firestore\'s 500-write limit? Or is it a timing issue where loadCards runs before Firestore indexes the new documents? Add a 1.2 second delay after fsBatch completes before returning.'},
+      {label:'Booster box feature',text:'Add a second pack type: Booster Box costs 100 bricks and gives 40 cards with 5 Gold guaranteed. On the pack screen, show two side-by-side tiles — Standard Pack (50 bricks, 15 cards) and Booster Box (100 bricks, 40 cards). Tapping a tile selects it. The buy button text and cost updates accordingly. Store the selected type in a _packType variable. openPack() should check _packType and use cost/count accordingly.'},
+    ],
+    tip:'When something fails silently (no error, no result), ask Claude to add console.log statements at every step of the function so you can see exactly where it stops.'
   },
   {
     n:5,
-    t:'Share error messages verbatim',
-    d:'When something breaks, copy the exact console error and paste it to Claude. Don\'t paraphrase — the exact error text is what Claude needs.',
-    example:'Getting this in the console: "Access to fetch at https://firestore.googleapis.com... has been blocked by CORS policy: No \'Access-Control-Allow-Origin\' header". The fetch is a POST to runQuery. What\'s wrong?',
-    tip:'Open browser DevTools (F12), go to the Console tab. Copy everything red. The more detail, the faster the fix.'
+    t:'The transfer market',
+    d:'The market had to be atomic — no partial writes where a buyer pays but the card doesn\'t transfer. We used fsBatch for this and it took a few iterations to get the document name format right.',
+    prompts:[
+      {label:'Market listing flow',text:'Build a transfer market. Players can list a card for sale at a price they choose. Max 3 active listings per player. 10% fee on sale (seller receives 90%). The listing is a Firestore document with: cardId, sellerId, sellerNick, cardName, country, pos, rarity, price, status (active/sold/cancelled), windowNum. When a card is listed, update its status to "listed" so it can\'t be put in the XI.'},
+      {label:'Atomic buy transaction',text:'The buyCard function must be atomic — either all four writes succeed or none do. Use fsBatch with these four operations: 1) listing status → sold, 2) card ownerId → buyer, status → owned, 3) buyer bricks -= price, 4) seller bricks += (price minus 10% fee). Before writing, do a fresh fsGet on the listing to confirm it\'s still active — prevent two players buying simultaneously.'},
+      {label:'Market tabs not working',text:'The market tabs (All, GK, DEF, MID, FWD, Card Packs, My Listings) call mktFilter() but I get "mktFilter is not defined". The function is referenced in the HTML tab buttons but doesn\'t exist in the JS. Add it — it should set a _mktTab variable and call renderMkt() to re-render with the active filter.'},
+    ],
+    tip:'"Atomic" is a useful word to include in prompts when you need all-or-nothing writes. Claude will reach for fsBatch or a transaction automatically.'
   },
   {
     n:6,
-    t:'Upload your file for context',
-    d:'As the file gets larger, Claude\'s memory of earlier decisions fades. Upload the current HTML file at the start of each session so Claude can read the actual code.',
-    example:'[Upload file] Here\'s the current index.html. I want to add a transfer market where players can list cards for sale. Other players can browse and buy. 10% fee. Max 3 listings per player. Build this on top of what\'s already there.',
-    tip:'Starting a new conversation? Always upload the file first. Claude will audit it before making changes rather than guessing at the current state.'
+    t:'Team selection and formations',
+    d:'The pitch renderer and player picker had several layers of bugs. The blank picker screen was caused by formation slot names (CDM, ATT) not matching card position names (MID). Always name the mismatch explicitly.',
+    prompts:[
+      {label:'Pitch renderer',text:'Render a football pitch using HTML/CSS — green striped background, centre circle, halfway line. Players appear as circular avatars arranged by formation. Empty slots show the position label (GK, DEF etc) in gold with a "tap" hint underneath. Filled slots show the player sprite, name, and points. The pitch must work on a 380px mobile screen — player circles 52px, name text 11px minimum.'},
+      {label:'Formation toggle',text:'Add a formation toggle at the top of the team screen: 4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 5-3-2. Switching formation clears the current XI (can\'t carry a 4-4-2 midfield into 3-5-2). Store formation with the XI in Firestore so it persists across sessions. The 4-2-3-1 formation uses CDM and ATT as row labels, but cards have pos=MID — add a cardPos mapping so CDM and ATT slots accept MID cards.'},
+      {label:'Player picker with filters',text:'The player picker modal (shown when tapping a slot) is showing a blank screen for CDM and ATT positions in 4-2-3-1. Fix the position mapping. Also add three filters to the top of the modal: a text search (name or country), a nation dropdown (populated from eligible cards only), and a rarity filter. Show a count like "8 players" or "3 players (filtered from 8)". Show a red ×N copies badge on any card that has duplicates in the player\'s collection.'},
+    ],
+    tip:'When a blank screen appears with no error, the filter returning empty is almost always the cause. Ask Claude to log the elig array length before rendering.'
   },
   {
     n:7,
-    t:'Ask for audits before going live',
-    d:'Before sharing with real users, ask Claude to do a full bug sweep. It\'s surprisingly good at finding its own mistakes.',
-    example:'Before I share this with my team, do a full audit. Check: all Firestore URLs are correct, no duplicate function definitions, all async functions have error handling, no hardcoded test values, mobile layout works at 380px, the scoring logic matches the rules in How to Play.',
-    tip:'Be specific about what to check. "Check for bugs" is too vague. List the specific categories of things that could go wrong.'
+    t:'Scoring engine',
+    d:'The scoring function went through several rewrites. The key decisions: points live on the player record (not the card), scoring uses the locked-in XI not current card ownership, and traded cards carry zero retrospective value for the new owner.',
+    prompts:[
+      {label:'Scoring design',text:'Build an admin scoring function. Admin enters: home team, away team, score, goalscorers (comma-separated), assists, red cards. The function fetches all saved XIs for the current window only. For each XI, checks which cards match the playing teams. Scoring: Win +4pts, Draw +2pts, Goal scorer +8pts, Assist +5pts, Clean sheet GK/DEF +5pts, Clean sheet MID +2pts, High-scoring match (3+ goals) FWD +3pts, MID +2pts, Red card -5pts. Write points to players/{id}.points (the leaderboard score) AND to cards/{cardId}.points (display only). Use Promise.all to fetch cards by country in bulk — not 200 individual fsGet calls.'},
+      {label:'Preventing duplicate player scoring',text:'A player has two copies of Yamal in their collection and somehow both ended up in their XI. The current scorer adds points twice for Yamal. Add a scoredPlayers Set inside the scoring loop — if a player\'s name+country has already been scored for this XI, skip it. Also fix autoFill to track name+country in a usedPlayers Set so it never assigns two copies of the same real-world player to different slots.'},
+      {label:'Making points permanent',text:'Confirm the scoring architecture: (1) points on players/{id}.points are permanent — nothing in buyCard, listCard, or any trade function touches this field, (2) scoring reads from xi/{id}.slots which is frozen at window lock time, (3) a card traded away carries its cosmetic points display but the leaderboard only uses the player record. Audit buyCard and confirm it only writes to listings, cards (ownerId), and players (bricks). It must never touch players.points.'},
+    ],
+    tip:'"Confirm X is true and audit Y" is a powerful prompt pattern. Claude will re-read the relevant code and explicitly verify rather than just assume.'
   },
   {
     n:8,
-    t:'Keep a running change log',
-    d:'In long sessions, tell Claude what version you\'re on and what changed since last time. This reduces the chance of fixes being re-introduced as bugs.',
-    example:'Quick context before we continue: the last working build had these features [list]. The version I\'m uploading now is missing X and Y which broke in the last session. Here\'s the exact error I\'m seeing. Please fix only those two things without touching anything else.',
-    tip:'The phrase "without touching anything else" is powerful. It stops Claude from helpfully refactoring things that were already working.'
+    t:'Handling bugs: what actually worked',
+    d:'The majority of the build time was fixing bugs. These prompts were the most effective — specific, with exact error text, and a clear hypothesis about the cause.',
+    prompts:[
+      {label:'CORS error diagnosis',text:'Getting this in the console: "Access to fetch at https://firestore.googleapis.com/v1/projects/[id]/databases/(default):runQuery has been blocked by CORS policy: No Access-Control-Allow-Origin header". The URL has databases/(default):runQuery — is that the wrong endpoint? It should probably be databases/(default)/documents:runQuery. Fix the _QRY constant and also check batchWrite URL for the same issue.'},
+      {label:'Avoiding regression',text:'[Upload file] Here is the current working index.html. I want to add the booster box pack type. Before you make any changes: (1) confirm the Firestore URLs are correct — _QRY must end in /documents:runQuery not /:runQuery, (2) confirm there is only one definition of tryAutoLogin, (3) check giveStarterPack draws 40 cards not 16. Then add the booster box. Do not touch anything else.'},
+      {label:'When the file got truncated',text:'The file you generated is 199KB but the previous working version was 244KB. Something was truncated. The renderAlbum function seems to be cut off mid-way — the file ends inside the album forEach loop. The issue is probably in how you found the end of the function — albumFilter appears BEFORE renderAlbum in the file, so searching for it as the next function gives the wrong boundary. Please rebuild from my uploaded file and fix only the three specific things I listed.'},
+    ],
+    tip:'Paste the exact console error every time. Never paraphrase it. The specific error code (403 vs 404 vs CORS) completely changes the diagnosis. Also: always tell Claude the expected file size — it\'s the fastest way to catch truncation.'
   },
 ];
 
@@ -3418,24 +3458,60 @@ function buildBuiltSteps(){
   BUILT_STEPS.forEach((step,i)=>{
     const div=document.createElement('div');
     div.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:8px;overflow:hidden;';
+    // Header
     const hdr=document.createElement('div');
-    hdr.style.cssText='display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;';
-    hdr.innerHTML='<div style="font-family:var(--fh);font-size:13px;font-weight:900;color:var(--accent);min-width:20px;">'+step.n+'</div>'
-      +'<div style="font-family:var(--fh);font-size:13px;font-weight:700;flex:1;">'+step.t+'</div>'
-      +'<div class="htp-chev" style="color:var(--muted);font-size:18px;transition:transform .2s;">\u203a</div>';
+    hdr.style.cssText='display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;user-select:none;';
+    hdr.innerHTML='<div style="font-family:var(--fh);font-size:14px;font-weight:900;color:var(--accent);min-width:22px;flex-shrink:0;">'+step.n+'</div>'
+      +'<div style="font-family:var(--fh);font-size:13px;font-weight:700;flex:1;line-height:1.3;">'+step.t+'</div>'
+      +'<div class="step-chev" style="color:var(--muted);font-size:20px;transition:transform .2s;flex-shrink:0;">›</div>';
+    // Body
     const body=document.createElement('div');
-    body.style.cssText='display:none;padding:0 14px 14px;';
-    body.innerHTML='<div style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:10px;">'+step.d+'</div>'
-      +'<div style="background:var(--surface);border-left:3px solid var(--accent);border-radius:0 var(--r) var(--r) 0;padding:10px 12px;margin-bottom:8px;">'
-      +'<div style="font-size:9px;font-family:var(--fm);color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Example prompt</div>'
-      +'<div style="font-size:11px;color:var(--text);line-height:1.6;font-style:italic;">&ldquo;'+esc(step.example)+'&rdquo;</div>'
-      +'</div>'
-      +'<div style="font-size:11px;color:var(--muted);line-height:1.5;">'
-      +'<span style="color:var(--accent);font-weight:700;">Tip:</span> '+esc(step.tip)+'</div>';
+    body.style.cssText='display:none;padding:0 14px 16px;border-top:1px solid var(--border);';
+    // Description
+    const desc=document.createElement('div');
+    desc.style.cssText='font-size:12px;color:var(--text);line-height:1.7;padding:12px 0 10px;';
+    desc.innerHTML=step.d;
+    body.appendChild(desc);
+    // Prompts (multiple, collapsible)
+    if(step.prompts&&step.prompts.length){
+      step.prompts.forEach((p,pi)=>{
+        const pWrap=document.createElement('div');
+        pWrap.style.cssText='border:1px solid var(--border2);border-radius:var(--r);margin-bottom:8px;overflow:hidden;background:var(--surface);';
+        const pHdr=document.createElement('div');
+        pHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;';
+        pHdr.innerHTML='<div style="font-size:10px;font-family:var(--fm);color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Example prompt: '+esc(p.label)+'</div>'
+          +'<div class="p-chev" style="color:var(--muted);font-size:14px;transition:transform .15s;">›</div>';
+        const pBody=document.createElement('div');
+        pBody.style.cssText='display:none;padding:10px 12px;border-top:1px solid var(--border2);';
+        const copyBtn=document.createElement('button');
+        copyBtn.style.cssText='margin-top:8px;font-size:10px;color:var(--muted);background:none;border:1px solid var(--border2);border-radius:var(--r);padding:3px 8px;cursor:pointer;';
+        copyBtn.textContent='Copy prompt';
+        copyBtn.onclick=(e)=>{e.stopPropagation();navigator.clipboard.writeText(p.text).then(()=>toast('Copied!','ok')).catch(()=>toast('Copy failed','err'));};
+        const pText=document.createElement('div');
+        pText.style.cssText='font-size:11px;color:var(--text);line-height:1.7;font-style:italic;white-space:pre-wrap;';
+        pText.textContent='“'+p.text+'”';
+        pBody.appendChild(pText);pBody.appendChild(copyBtn);
+        pHdr.onclick=()=>{
+          const open=pBody.style.display!=='none';
+          pBody.style.display=open?'none':'block';
+          pHdr.querySelector('.p-chev').style.transform=open?'':'rotate(90deg)';
+        };
+        pWrap.appendChild(pHdr);pWrap.appendChild(pBody);
+        body.appendChild(pWrap);
+      });
+    }
+    // Tip
+    if(step.tip){
+      const tip=document.createElement('div');
+      tip.style.cssText='font-size:11px;line-height:1.6;color:var(--muted);border-top:1px solid var(--border2);padding-top:10px;margin-top:4px;';
+      tip.innerHTML='<span style="color:var(--accent);font-weight:700;">⚡ Pro tip:</span> '+esc(step.tip);
+      body.appendChild(tip);
+    }
+    // Toggle
     hdr.onclick=()=>{
       const open=body.style.display!=='none';
       body.style.display=open?'none':'block';
-      hdr.querySelector('.htp-chev').style.transform=open?'':'rotate(90deg)';
+      hdr.querySelector('.step-chev').style.transform=open?'':'rotate(90deg)';
     };
     div.appendChild(hdr);div.appendChild(body);
     con.appendChild(div);
