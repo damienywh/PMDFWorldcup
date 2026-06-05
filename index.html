@@ -422,6 +422,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
  </div>
  <div id="screens">
   <div id="s-home" class="screen active">
+   <div id="home-claim-banner" class="starter-claim-banner" style="display:none;background:var(--accent);border-radius:var(--rl);padding:12px;margin-bottom:10px;text-align:center;">
+    <div style="font-family:var(--fh);font-size:13px;font-weight:900;color:#1a1000;margin-bottom:3px;">🎁 Claim your free starter pack!</div>
+    <div style="font-size:11px;color:#3a2000;margin-bottom:8px;">Your 40 cards weren't delivered. Tap below to claim them free.</div>
+    <button class="btn" id="claim-pack-btn-home" onclick="claimStarterPack()" style="background:#1a1000;color:var(--accent);font-family:var(--fh);font-weight:800;padding:8px 20px;border-radius:var(--r);font-size:13px;">Claim 40 Free Cards</button>
+   </div>
    <div class="home-hero"><div style="font-family:var(--fh);font-size:20px;font-weight:900;text-transform:uppercase;color:var(--accent);">Build your 11.</div><div style="color:var(--muted);font-size:12px;margin-top:2px;">Bricks buy players. Points win the game.</div></div>
    <div class="win-banner"><div style="display:flex;align-items:center;gap:5px;font-size:12px;"><div class="win-dot" id="win-dot"></div><span id="win-label">Window 1 Open</span></div><span style="font-size:10px;color:var(--muted);" id="win-info">Set team before match</span></div>
    <div class="home-grid">
@@ -455,7 +460,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
   </div>
   <div id="s-cards" class="screen">
    <div class="sh">My Cards</div>
-   <div id="starter-claim-banner" style="display:none;background:var(--accent);border-radius:var(--rl);padding:14px;margin-bottom:12px;text-align:center;">
+   <div id="starter-claim-banner" class="starter-claim-banner" style="display:none;background:var(--accent);border-radius:var(--rl);padding:14px;margin-bottom:12px;text-align:center;">
     <div style="font-family:var(--fh);font-size:14px;font-weight:900;color:#1a1000;margin-bottom:4px;">No cards yet!</div>
     <div style="font-size:11px;color:#3a2000;margin-bottom:10px;">Your starter pack wasn't delivered. Claim your 40 free cards now.</div>
     <button class="btn" id="claim-pack-btn" onclick="claimStarterPack()" style="background:#1a1000;color:var(--accent);font-family:var(--fh);font-weight:800;padding:8px 20px;border-radius:var(--r);">Claim 40 Free Cards</button>
@@ -2383,6 +2388,9 @@ function makeCard(card,opts={}){
 
 // ── HOME ──
 function renderHome(){
+  // Show starter pack claim banner on home if player has no cards
+  const homeBanner=document.getElementById('home-claim-banner');
+  if(homeBanner)homeBanner.style.display=(myCards.length===0&&CU)?'block':'none';
   updateHeader();
   document.getElementById('h-cc').textContent=myCards.length+' players';
   const mktCount=allListings.filter(l=>l.sellerId!==CU?.id&&l.type!=='store'&&l.status==='active').length;
@@ -2497,7 +2505,7 @@ function renderCardsGrid(filter){
   // Show starter pack claim banner if player has no cards
   const claimBanner=document.getElementById('starter-claim-banner');
   if(claimBanner){
-    const hasCards=(CU?.cardCount||0)>0||myCards.length>0;
+    const hasCards=myCards.length>0; // Use actual loaded cards, not stored count
     claimBanner.style.display=hasCards?'none':'block';
   }
   const xiIds=new Set(Object.values(myXI));
