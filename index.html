@@ -5,29 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>PMDF Brick Cup 2026</title>
-
-  <div id="s-built" class="screen">
-   <div class="sh">How this was built</div>
-   <div class="ss">Made entirely with Claude. No prior coding experience needed.</div>
-   <div style="background:var(--chrome2);border:1px solid var(--cb);border-radius:var(--rl);padding:14px;margin-bottom:12px;">
-    <div style="font-family:var(--fh);font-size:13px;font-weight:800;color:var(--accent);margin-bottom:6px;">The short version</div>
-    <div style="font-size:12px;color:var(--text);line-height:1.6;">
-     This game was built entirely through conversations with <strong>Claude</strong> (claude.ai). No traditional coding, no IDE. The whole thing is a single HTML file with vanilla JavaScript, deployed free on Cloudflare Pages, with Firebase Firestore as the database. Total build time: several evenings of prompting.
-    </div>
-   </div>
-   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:12px;margin-bottom:12px;">
-    <div style="font-family:var(--fh);font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Tech Stack</div>
-    <div style="font-size:11px;color:var(--text);line-height:2;">
-     <span style="color:var(--accent);font-weight:700;">Claude</span> (claude.ai) &mdash; everything<br>
-     <span style="color:var(--accent);font-weight:700;">HTML / CSS / JS</span> &mdash; single file, no framework<br>
-     <span style="color:var(--accent);font-weight:700;">Firebase Firestore</span> &mdash; database via REST API<br>
-     <span style="color:var(--accent);font-weight:700;">Firebase Auth</span> &mdash; Google sign-in<br>
-     <span style="color:var(--accent);font-weight:700;">Cloudflare Pages</span> &mdash; free hosting<br>
-     <span style="color:var(--accent);font-weight:700;">GitHub</span> &mdash; version control + deployment<br>
-     <span style="color:var(--accent);font-weight:700;">GitHub Actions</span> &mdash; automated scoring cron job
-    </div>
-   </div>
-   <div id="built-steps"></div>
   </div>
 
 <!-- Firebase Auth loaded at end of body (synchronous, guaranteed order) -->
@@ -723,6 +700,30 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
    <div id="built-steps"></div>
   </div>
 </div>
+
+  <div id="s-built" class="screen">
+   <div class="sh">How this was built</div>
+   <div class="ss">Made entirely with Claude. No prior coding experience needed.</div>
+   <div style="background:var(--chrome2);border:1px solid var(--cb);border-radius:var(--rl);padding:14px;margin-bottom:12px;">
+    <div style="font-family:var(--fh);font-size:13px;font-weight:800;color:var(--accent);margin-bottom:6px;">The short version</div>
+    <div style="font-size:12px;color:var(--text);line-height:1.6;">
+     This game was built entirely through conversations with <strong>Claude</strong> (claude.ai). No traditional coding, no IDE. The whole thing is a single HTML file with vanilla JavaScript, deployed free on Cloudflare Pages, with Firebase Firestore as the database. Total build time: several evenings of prompting.
+    </div>
+   </div>
+   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:12px;margin-bottom:12px;">
+    <div style="font-family:var(--fh);font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Tech Stack</div>
+    <div style="font-size:11px;color:var(--text);line-height:2;">
+     <span style="color:var(--accent);font-weight:700;">Claude</span> (claude.ai) &mdash; everything<br>
+     <span style="color:var(--accent);font-weight:700;">HTML / CSS / JS</span> &mdash; single file, no framework<br>
+     <span style="color:var(--accent);font-weight:700;">Firebase Firestore</span> &mdash; database via REST API<br>
+     <span style="color:var(--accent);font-weight:700;">Firebase Auth</span> &mdash; Google sign-in<br>
+     <span style="color:var(--accent);font-weight:700;">Cloudflare Pages</span> &mdash; free hosting<br>
+     <span style="color:var(--accent);font-weight:700;">GitHub</span> &mdash; version control + deployment<br>
+     <span style="color:var(--accent);font-weight:700;">GitHub Actions</span> &mdash; automated scoring cron job
+    </div>
+   </div>
+   <div id="built-steps"></div>
+
 <div id="modal-bg" class="hidden" onclick="if(event.target===this)closeModal()">
  <div id="modal-box"><div class="modal-title" id="modal-title"></div><button id="modal-close" onclick="closeModal()">✕</button><div id="modal-body"></div></div>
 </div>
@@ -2416,6 +2417,7 @@ function goScreen(name){
   if(name==='home')renderHome();if(name==='team')renderTeam();if(name==='cards')renderCardsGrid(cardFilter);
   if(name==='market')renderMkt();if(name==='predict')renderPred();if(name==='lb')renderLb();
   if(name==='album')renderAlbum();
+  if(name==='built')buildBuiltSteps();
   updateNavAlerts();
 }
 
