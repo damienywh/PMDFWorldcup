@@ -429,6 +429,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
   </div>
   <div id="s-cards" class="screen">
    <div class="sh">My Cards</div>
+   <div id="starter-claim-banner" style="display:none;background:var(--accent);border-radius:var(--rl);padding:14px;margin-bottom:12px;text-align:center;">
+    <div style="font-family:var(--fh);font-size:14px;font-weight:900;color:#1a1000;margin-bottom:4px;">No cards yet!</div>
+    <div style="font-size:11px;color:#3a2000;margin-bottom:10px;">Your starter pack wasn't delivered. Claim your 40 free cards now.</div>
+    <button class="btn" id="claim-pack-btn" onclick="claimStarterPack()" style="background:#1a1000;color:var(--accent);font-family:var(--fh);font-weight:800;padding:8px 20px;border-radius:var(--r);">Claim 40 Free Cards</button>
+   </div>
    <div class="tabs" id="card-tabs">
     <button class="tab active" onclick="filterCards('all',this)">All</button>
     <button class="tab" onclick="filterCards('GK',this)">GK</button>
@@ -2080,7 +2085,8 @@ async function joinWithPin(){
     CU={id:newId,nickname:nick,firstName:fn||nick,bricks:120,points:0,cardCount:0};
     localStorage.setItem('brickcup_pid',newId);
     localStorage.setItem('brickcup_pinhash',pinHash);
-    await giveStarterPack(newId);await loadAll();launchApp();
+    try{await giveStarterPack(newId);}catch(e){console.warn("Pack failed:",e.message);toast("Signed up! Tap My Cards to claim your free pack ⚠️","ok");}
+await loadAll();launchApp();
     toast('Welcome, '+nick+'! 🎉','ok');
   }catch(e){toast('Error: '+e.message,'err');}
   btn.disabled=false;btn.textContent='Create Account →';
@@ -2155,7 +2161,8 @@ async function finishGoogleSignup(){
     const newId=await fsAdd('players',{nickname:nick,firstName:fn,googleUid:user.uid,googleEmail:user.email,bricks:120,points:0,joinedAt:ST(),cardCount:0,authMethod:'google'});
     CU={id:newId,nickname:nick,firstName:fn,bricks:120,points:0,cardCount:0};
     localStorage.setItem('brickcup_pid',newId);
-    await giveStarterPack(newId);await loadAll();launchApp();
+    try{await giveStarterPack(newId);}catch(e){console.warn("Pack failed:",e.message);toast("Signed up! Tap My Cards to claim your free pack ⚠️","ok");}
+await loadAll();launchApp();
     toast('Welcome, '+nick+'! 🎉','ok');
   }catch(e){toast('Error: '+e.message,'err');}
   btn.disabled=false;btn.textContent='Let\u2019s go \u2192';
@@ -2238,6 +2245,7 @@ async function giveStarterPack(pid){
   await fsBatch(cardOps);
   await fsUpdate('players',pid,{cardCount:INC(40)});
   await new Promise(r=>setTimeout(r,1200));
+  console.log('[Pack] 40 cards written for',pid);
 }
 function drawCards(n){return Array.from({length:n},()=>{const r=pickR();const pool=POOL.filter(p=>p.r===r);const src=pool.length?pool:POOL;const p=src[Math.floor(Math.random()*src.length)];return{realPlayerId:p.id,name:p.n,country:p.c,pos:p.p,rarity:p.r,flag:p.f};});}
 function pickR(){const r=Math.random();return r<.65?'bronze':r<.90?'silver':'gold';}
@@ -2254,11 +2262,11 @@ async function loadWindow(){
   if(ws.length){CW=ws[0];}
   else{const id=await fsAdd('windows',{number:1,open:true,locked:false,createdAt:ST()});CW={id,number:1,open:true,locked:false};}
   // Auto-seed store if this window is open (handles cron-opened windows)
-  if(CW.open&&!CW.locked)seedWindowStore(CW.number||1);
+  if(CW.open&&!CW.locked)seedWindowStore(CW.number||1).catch(e=>console.warn('Store seed:',e.message));
   fsListen('window',()=>fsList('windows',[],{orderBy:'createdAt',dir:'DESCENDING',limit:1}),ws=>{
     if(ws.length){
       const prev=CW.number;CW=ws[0];
-      if(CW.open&&!CW.locked&&CW.number!==prev)seedWindowStore(CW.number||1);
+      if(CW.open&&!CW.locked&&CW.number!==prev)seedWindowStore(CW.number||1).catch(e=>console.warn('Store seed:',e.message));
       refreshUI();
     }
   });
@@ -2414,6 +2422,12 @@ async function saveTeam(){
 function filterCards(f,btn){cardFilter=f;document.querySelectorAll('#card-tabs .tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderCardsGrid(f);}
 function renderCardsGrid(filter){
   const grid=document.getElementById('cards-grid');grid.innerHTML='';
+  // Show starter pack claim banner if player has no cards
+  const claimBanner=document.getElementById('starter-claim-banner');
+  if(claimBanner){
+    const hasCards=(CU?.cardCount||0)>0||myCards.length>0;
+    claimBanner.style.display=hasCards?'none':'block';
+  }
   const xiIds=new Set(Object.values(myXI));
   let cards=[...myCards];if(filter!=='all')cards=cards.filter(c=>c.pos===filter);
   if(!cards.length){grid.innerHTML='<div style="color:var(--muted);padding:16px;text-align:center;width:100%;">No cards here.</div>';return;}
@@ -2471,6 +2485,28 @@ async function cancelListing(card){
   closeModal();toast('Listing cancelled','ok');
 }
 
+
+// One-off free starter pack claim (for players who missed auto-pack on signup)
+async function claimStarterPack(){
+  if(!CU){toast('Sign in first','err');return;}
+  if((CU.cardCount||0)>0){toast('You already have cards!','err');return;}
+  const btn=document.getElementById('claim-pack-btn');
+  if(btn){btn.disabled=true;btn.textContent='Claiming...';}
+  try{
+    await giveStarterPack(CU.id);
+    CU.cardCount=40;
+    updateHeader();
+    toast('40 starter cards claimed! Check My Cards ✅','ok');
+    // Hide the banner
+    const banner=document.getElementById('starter-claim-banner');
+    if(banner)banner.style.display='none';
+    renderCardsGrid('all');
+  }catch(e){
+    toast('Claim failed: '+e.message,'err');
+    if(btn){btn.disabled=false;btn.textContent='Claim Free Starter Pack';}
+  }
+}
+
 // ── PACKS ──
 async function openPack(){
   const isBooster=typeof _packType!=='undefined'&&_packType==='booster';
@@ -2505,11 +2541,21 @@ async function openPack(){
   }catch(e){toast('Pack failed: '+e.message,'err');}
   if(btn){btn.disabled=false;btn.textContent='Open Pack';}
 }
+
+// Market tab filter
+let _mktTab='all';
+function mktFilter(tab,btn){
+  _mktTab=tab;
+  document.querySelectorAll('#mkt-tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderMkt();
+}
 async function renderMkt(){
   const con=document.getElementById('mkt-list'),emp=document.getElementById('mkt-empty');
   const banner=document.getElementById('store-banner');
   con.innerHTML='';emp.classList.add('hidden');
   if(banner)banner.style.display='none';
+  const tab=typeof _mktTab!=='undefined'?_mktTab:'all';
 
   // Update store tab badge from allListings cache
   const storeCount=allListings.filter(l=>l.type==='store'&&l.status==='active').length;
